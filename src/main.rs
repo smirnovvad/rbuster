@@ -1,10 +1,5 @@
-#![allow(warnings)] // remove when error_chain is fixed
-
-//! `cargo run --example simple`
 extern crate rayon;
 extern crate reqwest;
-#[macro_use]
-extern crate error_chain;
 #[macro_use] extern crate quicli;
 
 use std::fs::File;
