@@ -7,7 +7,7 @@ yet another dirbuster
 * `-vv` - verbose output (show all results).
 * `-w <wordlist>` - path to the wordlist used for brute forcing.
 
-###Example
+### Example
 ```
 $ rbuster -w common.txt -u http://horriblesubs.info/
 
