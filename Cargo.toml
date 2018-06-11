@@ -1,12 +1,18 @@
 [package]
 name = "rbuster"
+description = "Brute force directories and files names on web/application servers."
+repository = "https://github.com/smirnovvad/rbuster"
+keywords = ["bruteforce", "dirbuster", "ctf", "fuzz"]
+categories = ["bruteforce"]
+license = "MIT"
 version = "0.1.0"
 authors = ["Vadim Smirnov <smirnovvad7@gmail.com>"]
 
+[badges]
+travis-ci = { repository = "smirnovvad/rbuster", branch = "master" }
+maintenance = { status = "as-is" }
+
 [dependencies]
 reqwest = "0.8"
-futures = "0.2"
-tokio-core = "0.1"
-error-chain = "0.11"
 rayon = "1.0"
 quicli = "0.3"
