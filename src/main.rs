@@ -75,7 +75,7 @@ impl State {
         self.client = clientb.build().unwrap();
     }
 
-    fn printConfig(&self, len: usize) {
+    fn print_config(&self, len: usize) {
         println!("Rbuster 0.1.0                 Vadim Smirnov");
         println!("=====================================================");
         println!("Url/Domain    : {}", self.url);
@@ -103,7 +103,7 @@ main!(|args: Cli, log_level: verbosity| {
     let mut state = State::new(&args); 
     state.validate_args(&args);
     let wordlist = lines_from_file(&state.wordlist);
-    state.printConfig(wordlist.len());
+    state.print_config(wordlist.len());
     wordlist.par_iter()
         .for_each_with(&state, |c, s| {
             let url = format!("{}{}", state.url, s).to_string();
