@@ -76,7 +76,7 @@ impl State {
     }
 
     fn print_config(&self, len: usize) {
-        println!("Rbuster 0.1.0                 Vadim Smirnov");
+        println!("Rbuster 0.1.1                 Vadim Smirnov");
         println!("=====================================================");
         println!("Url/Domain    : {}", self.url);
         println!("Wordlist      : {}", self.wordlist.as_path().to_str().unwrap());

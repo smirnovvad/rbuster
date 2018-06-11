@@ -1,4 +1,4 @@
-Rbuster v0.1.0
+Rbuster v0.1.1
 ========================================
 yet another dirbuster
 ### Common Command line options
@@ -8,6 +8,11 @@ yet another dirbuster
 * `-u <url/domain>` - full URL (including scheme), or base domain name.
 * `-v` - verbose output (show all results).
 * `-w <wordlist>` - path to the wordlist used for brute forcing.
+
+### Install
+```
+cargo install rbuster
+```
 
 ### Example
 ```
