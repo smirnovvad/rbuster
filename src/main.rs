@@ -17,11 +17,9 @@ use quicli::prelude::*;
 
 #[derive(Debug, StructOpt)]
 struct Cli {
-    // Add a CLI argument `--count`/-n` that defaults to 3, and has this help text:
     /// Path to the wordlist
     #[structopt(long = "wordlist", short = "w", default_value = "", parse(from_os_str))]
     wordlist: PathBuf,
-    // Add a positional argument that the user has to supply:
     /// The target URL or Domain
     #[structopt(long = "url", short = "u", default_value = "")]
     url: String,
@@ -84,8 +82,9 @@ main!(|args: Cli, log_level: verbosity| {
             let url = format!("{}{}", state.url, s).to_string();
             let mut res = c.client.head(&url).send().unwrap();
             let len = res.headers().get::<ContentLength>().map(|ct_len| **ct_len).unwrap_or(0);
+            info!("/{} (Status: {}) ", s, res.status());
             if state.statusCodes.contains(&res.status().as_u16()) {
-                println!("/{} (Status: {}) Content-Length: {}", s, res.status(), len);
+                println!("/{} (Status: {} | Content-Length: {})", s, res.status(), len);
 
             };
         });
