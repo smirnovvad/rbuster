@@ -12,6 +12,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use rayon::prelude::*;
 use reqwest::header::ContentLength;
+use reqwest::RedirectPolicy;
 use quicli::prelude::*;
 
 
@@ -40,7 +41,14 @@ struct State {
 
 impl State {
     fn new(args: Cli) -> State {
-         State{client: reqwest::Client::new(), url: args.url, statusCodes: args.statusCodes.split(",").map(|c| c.parse::<u16>().unwrap()).collect::<Vec<u16>>(), wordlist: args.wordlist}
+         State{client: reqwest::Client::builder()
+                 .redirect(RedirectPolicy::none())
+                 .build().unwrap(),
+         url: args.url,
+         statusCodes: args.statusCodes.split(",").map(|c| c.parse::<u16>()
+                                                      .unwrap())
+                                                      .collect::<Vec<u16>>(),
+         wordlist: args.wordlist}
     }
 
     fn validate_args(&mut self) {
@@ -80,11 +88,12 @@ main!(|args: Cli, log_level: verbosity| {
     wordlist.par_iter()
         .for_each_with(&state, |c, s| {
             let url = format!("{}{}", state.url, s).to_string();
-            let mut res = c.client.head(&url).send().unwrap();
-            let len = res.headers().get::<ContentLength>().map(|ct_len| **ct_len).unwrap_or(0);
-            info!("/{} (Status: {}) ", s, res.status());
+            let mut res = c.client.get(&url).send().unwrap();
+            //let len = res.headers().get::<ContentLength>().map(|ct_len| **ct_len).unwrap_or(0);
+            let len = &res.text().unwrap().len();
+            info!("/{} (Status: {}) ", s, &res.status());
             if state.statusCodes.contains(&res.status().as_u16()) {
-                println!("/{} (Status: {} | Content-Length: {})", s, res.status(), len);
+                println!("/{} (Status: {} | Content-Length: {})", s, &res.status(), len);
 
             };
         });
