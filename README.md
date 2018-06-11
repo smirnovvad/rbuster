@@ -2,9 +2,11 @@ Rbuster v0.1.0
 ========================================
 yet another dirbuster
 ### Common Command line options
+* `-a <user agent string>` - specify a user agent string to send in the request header.
+* `-r` - follow redirects.
 * `-s <status codes>` - comma-separated set of the list of status codes to be deemed a "positive" (default: `200,204,301,302,307`).
 * `-u <url/domain>` - full URL (including scheme), or base domain name.
-* `-vv` - verbose output (show all results).
+* `-v` - verbose output (show all results).
 * `-w <wordlist>` - path to the wordlist used for brute forcing.
 
 ### Example
