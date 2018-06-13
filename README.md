@@ -1,4 +1,4 @@
-Rbuster v0.1.1
+Rbuster v0.1.2
 ========================================
 yet another dirbuster
 ### Common Command line options
@@ -11,6 +11,12 @@ yet another dirbuster
 
 ### Install
 ```
+cargo install rbuster
+```
+
+### Install in kali
+```
+apt get install libssl-dev pkg-config
 cargo install rbuster
 ```
 
