@@ -16,7 +16,7 @@ cargo install rbuster
 
 ### Install in kali
 ```
-apt get install libssl-dev pkg-config
+apt install libssl-dev pkg-config
 cargo install rbuster
 ```
 
