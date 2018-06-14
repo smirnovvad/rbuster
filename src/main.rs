@@ -118,12 +118,12 @@ main!(|args: Cli, log_level: verbosity| {
             ::std::process::exit(1);
         }
     };
-    wordlist.into_par_iter().for_each_with(&state, |c, s| {
+    wordlist.into_par_iter().for_each(|s| {
         let url = format!("{}{}", state.url, s).to_string();
-        let res = c.client.head(&url).send().unwrap();
+        let res = state.client.head(&url).send().unwrap();
         warn!("/{} (Status: {}) ", s, &res.status());
         if state.status_codes.contains(&res.status().as_u16()) {
-            let mut res = c.client.get(&url).send().unwrap();
+            let mut res = state.client.get(&url).send().unwrap();
             let len = &res.text().unwrap().len();
             println!(
                 "/{} (Status: {} | Content-Length: {})",
