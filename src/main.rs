@@ -4,8 +4,7 @@ extern crate reqwest;
 extern crate quicli;
 
 use quicli::prelude::*;
-use rayon::prelude::*;
-use reqwest::header;
+use reqwest::header::*;
 use reqwest::RedirectPolicy;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -16,9 +15,24 @@ struct Cli {
     /// Specify a user agent string to send in the request header
     #[structopt(long = "user-agent", short = "a", default_value = "")]
     user_agent: String,
+    /// HTTP Authorization via Bearer token.
+    #[structopt(long = "bearer", short = "b", default_value = "")]
+    bearer: String,
+    /// HTTP Authorization username (Basic Auth only).
+    #[structopt(long = "username", short = "U", default_value = "")]
+    username: String,
+    /// HTTP Authorization password (Basic Auth only).
+    #[structopt(long = "password", short = "P", default_value = "")]
+    password: String,
+    /// use this to specify any cookies that you might need (simulating auth).
+    #[structopt(long = "cookies", short = "c", default_value = "")]
+    cookies: String,
     /// Follow redirects
     #[structopt(long = "redirects", short = "r")]
     redirects: bool,
+    /// Show the length of the response
+    #[structopt(long = "length", short = "l")]
+    length: bool,
     /// Path to the wordlist
     #[structopt(long = "wordlist", short = "w", parse(from_os_str))]
     wordlist: PathBuf,
@@ -62,7 +76,7 @@ impl State {
             self.url += "/";
         };
         let mut clientb = reqwest::Client::builder();
-        let mut headers = header::Headers::new();
+        let mut headers = reqwest::header::HeaderMap::new();
         if args.redirects {
             let custom = RedirectPolicy::custom(|attempt| {
                 if attempt.previous().len() > 5 {
@@ -71,17 +85,28 @@ impl State {
                     attempt.follow()
                 }
             });
-            clientb.redirect(custom);
+            clientb = clientb.redirect(custom);
+        } else {
+            clientb = clientb.redirect(RedirectPolicy::none());
         }
         if !args.user_agent.is_empty() {
-            headers.set(header::UserAgent::new(args.user_agent.clone()));
+            headers.insert(
+                USER_AGENT,
+                HeaderValue::from_str(&args.user_agent.clone()).unwrap(),
+            );
         }
-        clientb.default_headers(headers);
+        if !args.cookies.is_empty() {
+            headers.insert(
+                COOKIE,
+                HeaderValue::from_str(&args.cookies.clone()).unwrap(),
+            );
+        }
+        clientb = clientb.default_headers(headers);
         self.client = clientb.build().unwrap();
     }
 
     fn print_config(&self, len: usize) {
-        println!("Rbuster 0.1.2                         Vadim Smirnov");
+        println!("Rbuster 0.2.0                         Vadim Smirnov");
         println!("=====================================================");
         println!("Url/Domain    : {}", self.url);
         println!(
@@ -118,19 +143,35 @@ main!(|args: Cli, log_level: verbosity| {
             ::std::process::exit(1);
         }
     };
-    wordlist.into_par_iter().for_each(|s| {
-        let url = format!("{}{}", state.url, s).to_string();
-        let res = state.client.head(&url).send().unwrap();
-        warn!("/{} (Status: {}) ", s, &res.status());
+    wordlist.par_iter().for_each(|s| {
+        let url = format!("{}{}", &state.url, &s).to_string();
+        let mut req = state.client.head(&url);
+        if !args.username.is_empty() {
+            req = req.basic_auth(&args.username, Some(&args.password));
+        } else if !args.bearer.is_empty() {
+            req = req.bearer_auth(&args.bearer);
+        }
+        let res = req.send().unwrap();
+        warn!("/{} (Status: {}) ", &s, &res.status());
         if state.status_codes.contains(&res.status().as_u16()) {
-            let mut res = state.client.get(&url).send().unwrap();
-            let len = &res.text().unwrap().len();
-            println!(
-                "/{} (Status: {} | Content-Length: {})",
-                s,
-                &res.status(),
-                len
-            );
+            if args.length {
+                let mut req = state.client.get(&url);
+                if !args.username.is_empty() {
+                    req = req.basic_auth(&args.username, Some(&args.password));
+                } else if !args.bearer.is_empty() {
+                    req = req.bearer_auth(&args.bearer);
+                }
+                let mut res = req.send().unwrap();
+                let len = &res.text().unwrap().len();
+                println!(
+                    "/{} (Status: {} | Content-Length: {})",
+                    &s,
+                    &res.status(),
+                    len
+                );
+            } else {
+                println!("/{} (Status: {})", &s, &res.status(),);
+            }
         };
     });
 });
