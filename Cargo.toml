@@ -6,7 +6,7 @@ keywords = ["bruteforce", "dirbuster", "ctf", "fuzz"]
 categories = ["command-line-utilities", "parsing", "web-programming"]
 license = "MIT"
 readme = "README.md"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Vadim Smirnov <smirnovvad7@gmail.com>"]
 
 [badges]
@@ -14,6 +14,6 @@ travis-ci = { repository = "smirnovvad/rbuster", branch = "master" }
 maintenance = { status = "as-is" }
 
 [dependencies]
-reqwest = "0.8"
+reqwest = "0.9"
 rayon = "1.0"
 quicli = "0.3"
