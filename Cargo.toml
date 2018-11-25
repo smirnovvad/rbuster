@@ -6,7 +6,7 @@ keywords = ["bruteforce", "dirbuster", "ctf", "fuzz"]
 categories = ["command-line-utilities", "parsing", "web-programming"]
 license = "MIT"
 readme = "README.md"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Vadim Smirnov <smirnovvad7@gmail.com>"]
 
 [badges]
@@ -17,3 +17,4 @@ maintenance = { status = "as-is" }
 reqwest = "0.9"
 rayon = "1.0"
 quicli = "0.3"
+nanoid = "0.2.0"

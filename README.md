@@ -1,9 +1,10 @@
-Rbuster v0.2.0
+Rbuster v0.2.1
 ========================================
 yet another dirbuster
 ### Common Command line options
 * `-a <user agent string>` - specify a user agent string to send in the request
 * `-c <http cookies>` - use this to specify any cookies that you might need (simulating auth). header.
+* `-f` - force processing of a domain with wildcard results.
 * `-l` - show the length of the response.
 * `-r` - follow redirects.
 * `-s <status codes>` - comma-separated set of the list of status codes to be deemed a "positive" (default: `200,204,301,302,307`).

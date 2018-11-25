@@ -1,3 +1,4 @@
+extern crate nanoid;
 extern crate rayon;
 extern crate reqwest;
 #[macro_use]
@@ -27,6 +28,9 @@ struct Cli {
     /// use this to specify any cookies that you might need (simulating auth).
     #[structopt(long = "cookies", short = "c", default_value = "")]
     cookies: String,
+    /// Follow redirects
+    #[structopt(long = "force-wildcard", short = "f")]
+    wildcard_forced: bool,
     /// Follow redirects
     #[structopt(long = "redirects", short = "r")]
     redirects: bool,
@@ -106,7 +110,7 @@ impl State {
     }
 
     fn print_config(&self, len: usize) {
-        println!("Rbuster 0.2.0                         Vadim Smirnov");
+        println!("Rbuster 0.2.1                         Vadim Smirnov");
         println!("=====================================================");
         println!("Url/Domain    : {}", self.url);
         println!(
@@ -138,6 +142,22 @@ main!(|args: Cli, log_level: verbosity| {
     state.print_config(wordlist.len());
     match state.client.get(&state.url).send() {
         Ok(_) => (),
+        Err(err) => {
+            error!("{}", err);
+            ::std::process::exit(1);
+        }
+    };
+    let uid = format!("{}{}", &state.url, nanoid::simple()).to_string();
+    match state.client.get(&uid).send() {
+        Ok(res) => {
+            if state.status_codes.contains(&res.status().as_u16()) {
+                println!("[-] Wildcard response found: {} => {}", &uid, &res.status());
+                if !&args.wildcard_forced {
+                    error!("To force processing of Wildcard responses, specify the '-f' switch.");
+                    ::std::process::exit(1);
+                }
+            }
+        }
         Err(err) => {
             error!("{}", err);
             ::std::process::exit(1);
