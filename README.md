@@ -1,4 +1,4 @@
-Rbuster v0.2.1
+Rbuster
 ========================================
 yet another dirbuster
 ### Common Command line options
