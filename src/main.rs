@@ -1,17 +1,18 @@
 extern crate nanoid;
-extern crate rayon;
 extern crate reqwest;
-#[macro_use]
-extern crate quicli;
-
 use quicli::prelude::*;
+use structopt::StructOpt;
+
+use futures::{stream, StreamExt};
 use reqwest::header::*;
-use reqwest::RedirectPolicy;
+use reqwest::redirect::Policy;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, StructOpt)]
+const PARALLEL_REQUESTS: usize = 100;
+
+#[derive(Debug, StructOpt, Clone)]
 struct Cli {
     /// Specify a user agent string to send in the request header
     #[structopt(long = "user-agent", short = "a", default_value = "")]
@@ -44,13 +45,18 @@ struct Cli {
     #[structopt(long = "url", short = "u")]
     url: String,
     /// Positive status codes coma-separated
-    #[structopt(long = "statuscodes", short = "s", default_value = "200,204,301,302,307")]
+    #[structopt(
+        long = "statuscodes",
+        short = "s",
+        default_value = "200,204,301,302,307"
+    )]
     status_codes: String,
     // Quick and easy logging setup you get for free with quicli
     #[structopt(flatten)]
     verbosity: Verbosity,
 }
 
+#[derive(Clone)]
 struct State {
     client: reqwest::Client,
     url: String,
@@ -59,13 +65,13 @@ struct State {
 }
 
 impl State {
-    fn new(args: &Cli) -> State {
+    fn new(args: Cli) -> State {
         State {
             client: reqwest::Client::builder()
-                .redirect(RedirectPolicy::none())
+                .redirect(Policy::none())
                 .build()
                 .unwrap(),
-            url: args.url.clone(),
+            url: args.url,
             status_codes: args
                 .status_codes
                 .split(",")
@@ -75,23 +81,23 @@ impl State {
         }
     }
 
-    fn validate_args(&mut self, args: &Cli) {
-        if self.url.chars().last().unwrap() != '/' {
-            self.url += "/";
+    fn validate_args(&mut self, args: Cli) {
+        if self.url.chars().last() != Some('/') {
+            self.url = self.url.to_owned() + "/";
         };
         let mut clientb = reqwest::Client::builder();
         let mut headers = reqwest::header::HeaderMap::new();
         if args.redirects {
-            let custom = RedirectPolicy::custom(|attempt| {
+            let custom = Policy::custom(|attempt| {
                 if attempt.previous().len() > 5 {
-                    attempt.too_many_redirects()
+                    attempt.stop()
                 } else {
                     attempt.follow()
                 }
             });
             clientb = clientb.redirect(custom);
         } else {
-            clientb = clientb.redirect(RedirectPolicy::none());
+            clientb = clientb.redirect(Policy::none());
         }
         if !args.user_agent.is_empty() {
             headers.insert(
@@ -135,12 +141,14 @@ where
         .collect()
 }
 
-main!(|args: Cli, log_level: verbosity| {
-    let mut state = State::new(&args);
-    state.validate_args(&args);
+#[tokio::main]
+async fn main() {
+    let args = Cli::from_args();
+    let mut state = State::new(args.clone());
+    state.validate_args(args.clone());
     let wordlist = lines_from_file(&state.wordlist);
     state.print_config(wordlist.len());
-    match state.client.get(&state.url).send() {
+    match state.client.get(&state.url).send().await {
         Ok(_) => (),
         Err(err) => {
             error!("{}", err);
@@ -148,11 +156,11 @@ main!(|args: Cli, log_level: verbosity| {
         }
     };
     let uid = format!("{}{}", &state.url, nanoid::simple()).to_string();
-    match state.client.get(&uid).send() {
+    match state.client.get(&uid).send().await {
         Ok(res) => {
             if state.status_codes.contains(&res.status().as_u16()) {
                 println!("[-] Wildcard response found: {} => {}", &uid, &res.status());
-                if !&args.wildcard_forced {
+                if !args.wildcard_forced {
                     error!("To force processing of Wildcard responses, specify the '-f' switch.");
                     ::std::process::exit(1);
                 }
@@ -163,35 +171,52 @@ main!(|args: Cli, log_level: verbosity| {
             ::std::process::exit(1);
         }
     };
-    wordlist.par_iter().for_each(|s| {
-        let url = format!("{}{}", &state.url, &s).to_string();
-        let mut req = state.client.head(&url);
-        if !args.username.is_empty() {
-            req = req.basic_auth(&args.username, Some(&args.password));
-        } else if !args.bearer.is_empty() {
-            req = req.bearer_auth(&args.bearer);
-        }
-        let res = req.send().unwrap();
-        warn!("/{} (Status: {}) ", &s, &res.status());
-        if state.status_codes.contains(&res.status().as_u16()) {
-            if args.length {
-                let mut req = state.client.get(&url);
-                if !args.username.is_empty() {
-                    req = req.basic_auth(&args.username, Some(&args.password));
-                } else if !args.bearer.is_empty() {
-                    req = req.bearer_auth(&args.bearer);
+
+    let out = stream::iter(wordlist)
+        .map(|s| {
+            let state_ = state.clone();
+            let args_ = args.clone();
+            let url = format!("{}{}", &state_.url, &s).to_string();
+            let mut req = state_.client.head(&url);
+
+            tokio::spawn(async move {
+                if !args_.username.is_empty() {
+                    req = req.basic_auth(&args_.username, Some(&args_.password));
+                } else if !args_.bearer.is_empty() {
+                    req = req.bearer_auth(&args_.bearer);
                 }
-                let mut res = req.send().unwrap();
-                let len = &res.text().unwrap().len();
-                println!(
-                    "/{} (Status: {} | Content-Length: {})",
-                    &s,
-                    &res.status(),
-                    len
-                );
-            } else {
-                println!("/{} (Status: {})", &s, &res.status(),);
-            }
-        };
-    });
-});
+                let res = req.send().await.unwrap();
+                warn!("/{} (Status: {}) ", &s, &res.status());
+                if state_.status_codes.contains(&res.status().as_u16()) {
+                    if args_.length {
+                        let mut req = state_.client.get(&url);
+                        if !args_.username.is_empty() {
+                            req = req.basic_auth(&args_.username, Some(&args_.password));
+                        } else if !args_.bearer.is_empty() {
+                            req = req.bearer_auth(&args_.bearer);
+                        }
+                        let res = req.send().await.unwrap();
+                        let status = &res.status();
+                        let len = &res.text().await.unwrap().len();
+                        Some(format!(
+                            "/{} (Status: {} | Content-Length: {})",
+                            &s, status, len
+                        ))
+                    } else {
+                        Some(format!("/{} (Status: {})", &s, &res.status(),))
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+        .buffer_unordered(PARALLEL_REQUESTS);
+    out.for_each(|res| async {
+        match res {
+            Ok(Some(res)) => println!("{}", res),
+            Ok(None) => (),
+            Err(e) => eprintln!("Got a tokio::JoinError: {}", e),
+        }
+    })
+    .await;
+}
