@@ -6,7 +6,7 @@ keywords = ["bruteforce", "dirbuster", "ctf", "fuzz"]
 categories = ["command-line-utilities", "parsing", "web-programming"]
 license = "MIT"
 readme = "README.md"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Vadim Smirnov <smirnovvad7@gmail.com>"]
 edition="2018"
 
